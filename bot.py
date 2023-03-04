@@ -94,7 +94,7 @@ def transcribe_audio(audio_file):
         sample_rate_hertz=48000,
         audio_channel_count=2,
         language_code='en-US',
-        alternative_language_codes='zh-CN',
+        alternative_language_codes='zh',
         enable_automatic_punctuation=True,
         profanity_filter=True
     )
