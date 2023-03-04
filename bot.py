@@ -198,6 +198,7 @@ def handle_text(update: Update, context: CallbackContext):
     save_chat_history(user_id)
 
     # Send the audio response to the user
+    language_code = detect_language(reply_text)
     response_audio = synthesize_text(language_code, reply_text)
     context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
     
