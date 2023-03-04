@@ -73,7 +73,7 @@ def generate_ai_response(user_id):
       model="gpt-3.5-turbo",
       messages=user_chat_history[user_id])
     usage = response['usage']['total_tokens']
-    utilization = ("%.2f" % (usage*100/4096))
+    utilization = float(usage*100/4096)
     reply_text = response['choices'][0]['message']['content'].strip()
     reply_text = process_reply_message(reply_text)
 
