@@ -14,6 +14,7 @@ from google.cloud import language_v1
 
 # This dictionary will store the chat history for each user
 user_chat_history = {}
+user_data_path = "./user_data/"
 
 # Load the Telegram bot token from a secret JSON file
 with open(".secret.json") as f:
@@ -25,7 +26,7 @@ with open(".secret.json") as f:
 def load_chat_history(user_id):
     # Load the chat history from a file
     if user_id not in user_chat_history:
-        file_path = f"{user_id}.json"
+        file_path = f"{user_data_path}/{user_id}/{user_id}.json"
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 user_chat_history[user_id] = json.load(f)
@@ -38,7 +39,7 @@ def load_chat_history(user_id):
 
 def save_chat_history(user_id):
     # Save the chat history to a file in JSON format
-    with open(f"{user_id}.json", "w") as f:
+    with open(f"{user_data_path}/{user_id}/{user_id}.json", "w") as f:
         json.dump(user_chat_history[user_id], f)
 
 def process_reply_message(reply):
@@ -93,9 +94,8 @@ def transcribe_audio(audio_file):
     config = speech.types.RecognitionConfig(
         encoding=speech.types.RecognitionConfig.AudioEncoding.OGG_OPUS,
         sample_rate_hertz=48000,
-        audio_channel_count=2,
         language_code='en-US',
-        alternative_language_codes='cmn-hans-cn',
+        alternative_language_codes=['zh'],
         enable_automatic_punctuation=True,
         profanity_filter=True
     )
@@ -145,10 +145,11 @@ def handle_voice(update: Update, context: CallbackContext):
     context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
     audio_file = context.bot.get_file(audio_file_id)
-    audio_file.download(f"{user_id}.ogg")
+    audio_path = f"{user_data_path}/{user_id}/{user_id}.ogg"
+    audio_file.download(audio_path)
 
     # Transcribe the audio file
-    message_text = transcribe_audio(f"{user_id}.ogg")
+    message_text = transcribe_audio(audio_path)
     # openai.api_key = OPENAI_KEY
     # message_text = openai.Audio.transcribe("whisper-1", open(f"{user_id}.mp3", "rb"))
     print("Human:", message_text)
