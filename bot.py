@@ -92,7 +92,10 @@ def transcribe_audio(audio_file):
     config = speech_v1.types.RecognitionConfig(
         encoding=speech_v1.types.RecognitionConfig.AudioEncoding.OGG_OPUS,
         sample_rate_hertz=48000,
-        language_code='en-US'
+        audio_channel_count=2,
+        language_code='en-US',
+        alternative_language_codes='zh-CN',
+        profanity_filter=True
     )
 
     # Performs speech recognition on the audio file
@@ -130,8 +133,6 @@ def synthesize_text(language_code, text):
 
     return response.audio_content
 
-
-
 def handle_voice(update: Update, context: CallbackContext):
     # Handle an audio message from the user
     user_id = str(update.message.chat_id)
@@ -156,7 +157,7 @@ def handle_voice(update: Update, context: CallbackContext):
     # Generate a response from OpenAI
     reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
-    tips = "\nUsed:%.2f%%" % utilization  
+    tips = "\n[ Chat used:%.2f%% ]" % utilization  
 
     if 100 - utilization <= 0.01:
         user_chat_history[user_id] = []
@@ -186,7 +187,7 @@ def handle_text(update: Update, context: CallbackContext):
     # Generate a response from OpenAI
     reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
-    tips = "\nUsed:%.2f%%" % utilization  
+    tips = "\n[ Chat used:%.2f%% ]" % utilization  
 
     if 100 - utilization <= 0.01:
         user_chat_history[user_id] = []
