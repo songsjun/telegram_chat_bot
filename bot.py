@@ -72,11 +72,12 @@ def generate_ai_response(user_id):
     response = openai.ChatCompletion.create(
       model="gpt-3.5-turbo",
       messages=user_chat_history[user_id])
-
+    usage = response['usage']['total_tokens']
+    utilization = ("%.2f" % (usage*100/4096))
     reply_text = response['choices'][0]['message']['content'].strip()
     reply_text = process_reply_message(reply_text)
 
-    return reply_text
+    return reply_text, utilization
 
 def transcribe_audio(audio_file):
     # Instantiates a client
@@ -132,7 +133,6 @@ def synthesize_text(language_code, text):
 
 
 def handle_voice(update: Update, context: CallbackContext):
-    print("#### handle_voice ####")
     # Handle an audio message from the user
     user_id = str(update.message.chat_id)
     audio_file_id = update.message.voice.file_id
@@ -154,20 +154,24 @@ def handle_voice(update: Update, context: CallbackContext):
     user_chat_history[user_id].append({"role": "user", "content": message_text})
 
     # Generate a response from OpenAI
-    reply_text = generate_ai_response(user_id)
+    reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
-    language_code = detect_language(reply_text)
+    tips = "\nUsed:%.2f\%" % utilization  
 
-    # Add the AI's reply to the chat history
-    user_chat_history[user_id].append({"role": "assistant", "content": reply_text})
+    if 100 - utilization <= 0.01:
+        user_chat_history[user_id] = []
+        tips = tips + "\nThe chat has been reset"
+    else:
+        user_chat_history[user_id].append({"role": "assistant", "content": reply_text})
 
     # Save the chat history to a file
     save_chat_history(user_id)
 
     # Send the audio response to the user
+    language_code = detect_language(reply_text)
     response_audio = synthesize_text(language_code, reply_text)
     context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
-    update.message.reply_text(reply_text)
+    update.message.reply_text(reply_text+tips)
 
 def handle_text(update: Update, context: CallbackContext):
     # Handle a text message from the user
@@ -180,17 +184,25 @@ def handle_text(update: Update, context: CallbackContext):
     user_chat_history[user_id].append({"role": "user", "content": message_text})
 
     # Generate a response from OpenAI
-    reply_text = generate_ai_response(user_id)
+    reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
+    tips = "\nUsed:%.2f\%" % utilization  
 
-    # Add the AI's reply to the chat history
-    user_chat_history[user_id].append({"role": "assistant", "content": reply_text})
+    if 100 - utilization <= 0.01:
+        user_chat_history[user_id] = []
+        tips = tips + "\nThe chat has been reset"
+    else:
+        user_chat_history[user_id].append({"role": "assistant", "content": reply_text})
 
     # Save the chat history to a file
     save_chat_history(user_id)
 
+    # Send the audio response to the user
+    response_audio = synthesize_text(language_code, reply_text)
+    context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
+    
     # Reply to the user with the AI's response
-    update.message.reply_text(reply_text)
+    update.message.reply_text(reply_text+tips)
 
 def start(update: Update, context: CallbackContext):
     # Start a new chat session with the user
@@ -209,23 +221,6 @@ def error_handler(update: Update, context: CallbackContext):
         logging.error(f"Error sending message: {e}")
 
 def main():
-    # Set up the Telegram bot
-    # bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-    # updater = Updater(token=TELEGRAM_BOT_TOKEN)
-    # dispatcher = updater.dispatcher
-
-    # # Add handlers for commands and messages
-    # dispatcher.add_handler(CommandHandler("start", start))
-    # dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_text))
-    # dispatcher.add_handler(MessageHandler(Filters.audio & ~Filters.command, handle_audio))
-    # dispatcher.add_error_handler(error_handler)
-
-    # dispatcher = updater.dispatcher
-    # # Start the bot
-    # updater.start_polling()
-    # updater.idle()
-
-
     # Set up the bot and register the audio message handler
     bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
     updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
