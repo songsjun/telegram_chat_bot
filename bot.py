@@ -11,7 +11,6 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from google.cloud import texttospeech
 from google.cloud import speech_v1p1beta1 as speech
 from google.cloud import language_v1
-from langdetect import detect
 
 # This dictionary will store the chat history for each user
 user_chat_history = {}
@@ -90,13 +89,13 @@ def transcribe_audio(audio_file):
 
     # Specifies the audio file format
     audio = speech.types.RecognitionAudio(content=content)
-    language_code = detect(content)
-
+    
     config = speech.types.RecognitionConfig(
         encoding=speech.types.RecognitionConfig.AudioEncoding.OGG_OPUS,
         sample_rate_hertz=48000,
         audio_channel_count=2,
-        language_code=language_code,
+        language_code='en-US',
+        alternative_language_codes='cmn-hans-cn',
         enable_automatic_punctuation=True,
         profanity_filter=True
     )
