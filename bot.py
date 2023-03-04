@@ -156,7 +156,7 @@ def handle_voice(update: Update, context: CallbackContext):
     # Generate a response from OpenAI
     reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
-    tips = "\nUsed:%.2f\%" % utilization  
+    tips = "\nUsed:%.2f%%" % utilization  
 
     if 100 - utilization <= 0.01:
         user_chat_history[user_id] = []
@@ -186,7 +186,7 @@ def handle_text(update: Update, context: CallbackContext):
     # Generate a response from OpenAI
     reply_text, utilization = generate_ai_response(user_id)
     print("AI:", reply_text)
-    tips = "\nUsed:%.2f\%" % utilization  
+    tips = "\nUsed:%.2f%%" % utilization  
 
     if 100 - utilization <= 0.01:
         user_chat_history[user_id] = []
