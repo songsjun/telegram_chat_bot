@@ -9,7 +9,7 @@ import telegram
 from telegram import Update, ChatAction
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from google.cloud import texttospeech
-from google.cloud import speech_v1
+from google.cloud import speech_v1p1beta1 as speech
 from google.cloud import language_v1
 
 # This dictionary will store the chat history for each user
@@ -81,20 +81,21 @@ def generate_ai_response(user_id):
 
 def transcribe_audio(audio_file):
     # Instantiates a client
-    client = speech_v1.SpeechClient()
+    client = speech.SpeechClient()
 
     # Loads the audio into memory
     with open(audio_file, 'rb') as f:
         content = f.read()
 
     # Specifies the audio file format
-    audio = speech_v1.types.RecognitionAudio(content=content)
-    config = speech_v1.types.RecognitionConfig(
-        encoding=speech_v1.types.RecognitionConfig.AudioEncoding.OGG_OPUS,
+    audio = speech.types.RecognitionAudio(content=content)
+    config = speech.types.RecognitionConfig(
+        encoding=speech.types.RecognitionConfig.AudioEncoding.OGG_OPUS,
         sample_rate_hertz=48000,
         audio_channel_count=2,
         language_code='en-US',
         alternative_language_codes='zh-CN',
+        enable_automatic_punctuation=True,
         profanity_filter=True
     )
 
