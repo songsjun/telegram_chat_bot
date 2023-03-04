@@ -4,6 +4,6 @@ openai
 python_telegram_bot==13.7.0
 future==0.18.3
 google-cloud-texttospeech==2.14.0
-google-cloud-speech==2.0
+google-cloud-speech
 google-cloud-language
 google-cloud-translate
