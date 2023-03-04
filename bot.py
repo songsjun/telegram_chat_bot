@@ -31,6 +31,7 @@ def load_chat_history(user_id):
             with open(file_path, "r") as f:
                 user_chat_history[user_id] = json.load(f)
         else:
+            os.makedirs(f"{user_data_path}/{user_id}/", exist_ok = True)
             with open(file_path, "w") as f:
                 json.dump([], f)
                 user_chat_history[user_id] = []
@@ -145,6 +146,7 @@ def handle_voice(update: Update, context: CallbackContext):
     context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
     audio_file = context.bot.get_file(audio_file_id)
+    os.makedirs(f"{user_data_path}/{user_id}/", exist_ok = True)
     audio_path = f"{user_data_path}/{user_id}/{user_id}.ogg"
     audio_file.download(audio_path)
 
