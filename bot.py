@@ -23,10 +23,10 @@ with open(".secret.json") as f:
     OPENAI_KEY = config['OPENAI_KEY']
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = config['GOOGLE_CLOUD_KEY_FILE']
 
-def load_chat_history(user_id):
+def load_chat_history(user_id, asname="default"):
     # Load the chat history from a file
-    if user_id not in user_chat_history:
-        file_path = f"{user_data_path}/{user_id}/{user_id}.json"
+    if user_id not in user_chat_history or len(user_chat_history[user_id]) == 0:
+        file_path = f"{user_data_path}/{user_id}/{user_id}_{asname}.json"
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
                 user_chat_history[user_id] = json.load(f)
@@ -38,10 +38,12 @@ def load_chat_history(user_id):
 
     return user_chat_history[user_id]
 
-def save_chat_history(user_id):
+def save_chat_history(user_id, asname="default"):
     # Save the chat history to a file in JSON format
-    with open(f"{user_data_path}/{user_id}/{user_id}.json", "w") as f:
+    os.makedirs(f"{user_data_path}/{user_id}/", exist_ok = True)
+    with open(f"{user_data_path}/{user_id}/{user_id}_{asname}.json", "w") as f:
         json.dump(user_chat_history[user_id], f)
+
 
 def process_reply_message(reply):
     # Extract the AI's reply from the OpenAI-generated text
@@ -186,6 +188,9 @@ def handle_text(update: Update, context: CallbackContext):
     print("Human:", message_text)
     load_chat_history(user_id)
 
+    # Send a "typing" indicator while processing the audio file
+    context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
+
     # Add the message to the chat history
     user_chat_history[user_id].append({"role": "user", "content": message_text})
 
@@ -218,6 +223,33 @@ def start(update: Update, context: CallbackContext):
     save_chat_history(user_id)
     update.message.reply_text("Hi, I'm your assistant! Let's start a new chat.")
 
+def save(update: Update, context: CallbackContext):
+    # Get the user's argument
+    args = context.args
+    if len(args) == 0:
+        update.message.reply_text('Please provide an name.')
+        return
+
+    user_id = str(update.message.chat_id)
+    asname = str(args[0])
+
+    save_chat_history(user_id, asname)
+
+    update.message.reply_text(f'"{asname}" saved.')
+
+def load(update: Update, context: CallbackContext):
+    # Get the user's argument
+    args = context.args
+    if len(args) == 0:
+        update.message.reply_text('Please provide an name.')
+        return
+
+    user_id = str(update.message.chat_id)
+    asname = str(args[0])
+
+    user_chat_history[user_id] = []
+    load_chat_history(user_id, asname)
+
 def error_handler(update: Update, context: CallbackContext):
     # Log the error message
     logging.error(f"Update {update} caused error {context.error}")
@@ -233,6 +265,8 @@ def main():
     updater = Updater(token=TELEGRAM_BOT_TOKEN, use_context=True)
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("save", save))
+    dispatcher.add_handler(CommandHandler("load", load))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(MessageHandler(Filters.voice, handle_voice))
     # dispatcher.add_handler(MessageHandler(Filters.audio, handle_audio))
