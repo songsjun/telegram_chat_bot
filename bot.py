@@ -244,11 +244,35 @@ def load(update: Update, context: CallbackContext):
         update.message.reply_text('Please provide an name.')
         return
 
+    # Send a "typing" indicator while processing the audio file
+    context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
+
     user_id = str(update.message.chat_id)
     asname = str(args[0])
 
     user_chat_history[user_id] = []
     load_chat_history(user_id, asname)
+
+    reply_text = user_chat_history[user_id][-1]['content']
+
+    # Send the audio response to the user
+    language_code = detect_language(reply_text)
+    response_audio = synthesize_text(language_code, reply_text)
+    context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
+    
+    # Reply to the user with the AI's response
+    update.message.reply_text(reply_text)
+
+def help(update, context):
+    # Define the help message to be sent
+    message = "Hi, I m your assistant \n" \
+              "Here are the available command options:\n" \
+              "/start - Start a new chat\n" \
+              "/help - Get help information\n" \
+              "/save <custom name> - Save current chat to the storage\n" \
+              "/load <custom name> - Load a history chat to current chat\n"
+    # Reply to the user with the help message
+    update.message.reply_text(message)
 
 def error_handler(update: Update, context: CallbackContext):
     # Log the error message
@@ -267,9 +291,9 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("save", save))
     dispatcher.add_handler(CommandHandler("load", load))
+    dispatcher.add_handler(CommandHandler("help", help))
     dispatcher.add_handler(MessageHandler(Filters.text, handle_text))
     dispatcher.add_handler(MessageHandler(Filters.voice, handle_voice))
-    # dispatcher.add_handler(MessageHandler(Filters.audio, handle_audio))
 
     # Start the bot
     updater.start_polling()
