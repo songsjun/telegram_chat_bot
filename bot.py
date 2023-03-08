@@ -23,6 +23,12 @@ with open(".secret.json") as f:
     OPENAI_KEY = config['OPENAI_KEY']
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = config['GOOGLE_CLOUD_KEY_FILE']
 
+def newUser(user_id, asname="default"):
+    file_path = f"{user_data_path}/{user_id}/{user_id}_{asname}.json"
+    if user_id in user_chat_history or os.path.exists(file_path):
+        return False
+    return True
+
 def load_chat_history(user_id, asname="default"):
     # Load the chat history from a file
     if user_id not in user_chat_history or len(user_chat_history[user_id]) == 0:
@@ -65,8 +71,6 @@ def detect_language(text):
     response = client.detect_language(text)
 
     return response['language']
-
-
 
 def generate_ai_response(user_id):
     openai.api_key = OPENAI_KEY
@@ -139,9 +143,15 @@ def synthesize_text(language_code, text):
     return response.audio_content
 
 def handle_voice(update: Update, context: CallbackContext):
-    # Handle an audio message from the user
-    user_id = str(update.message.chat_id)
+    if update.message.chat.type == 'group':
+        return None
+
+    user_id = str(update.message.from_user.id)
     audio_file_id = update.message.voice.file_id
+
+    if newUser(user_id):
+        help(update, context)
+
     load_chat_history(user_id)
 
     # Send a "typing" indicator while processing the audio file
@@ -154,8 +164,6 @@ def handle_voice(update: Update, context: CallbackContext):
 
     # Transcribe the audio file
     message_text = transcribe_audio(audio_path)
-    # openai.api_key = OPENAI_KEY
-    # message_text = openai.Audio.transcribe("whisper-1", open(f"{user_id}.mp3", "rb"))
     print("Human:", message_text)
 
     # Add the message to the chat history
@@ -182,9 +190,31 @@ def handle_voice(update: Update, context: CallbackContext):
     update.message.reply_text(reply_text+tips)
 
 def handle_text(update: Update, context: CallbackContext):
-    # Handle a text message from the user
-    user_id = str(update.message.chat_id)
+    bot = context.bot
+    message = update.message
+    user_id = str(update.message.from_user.id)
     message_text = update.message.text
+
+    if message.chat.type == 'group':
+        if f"@{bot.username}" not in message_text and (not message.reply_to_message or message.reply_to_message.from_user.id != bot.id):
+            return None
+    pos = message_text.find(f"@{bot.username}")
+    if pos >= 0:
+        message_text = message_text[pos+len(f"@{bot.username}"):]
+
+    print(message_text, message_text.strip().lower().find('/help'))
+    if message_text.strip().lower().find('/start') == 0:
+        return start(update, context, True)
+    elif message_text.strip().lower().find('/help') == 0:
+        return help(update, context, True)
+    elif message_text.strip().lower().find('/load') == 0:
+        return load(update, context, True)
+    elif message_text.strip().lower().find('/save') == 0:
+        return save(update, context, True)
+
+    if newUser(user_id):
+        help(update, context, True)
+
     print("Human:", message_text)
     load_chat_history(user_id)
 
@@ -216,28 +246,39 @@ def handle_text(update: Update, context: CallbackContext):
     # Reply to the user with the AI's response
     update.message.reply_text(reply_text+tips)
 
-def start(update: Update, context: CallbackContext):
+def start(update: Update, context: CallbackContext, force=False):
+    if update.message.chat.type == 'group' and force == False:
+        return
     # Start a new chat session with the user
-    user_id = str(update.message.chat_id)
+    user_id = str(update.message.from_user.id)
+    
+    if update.message.chat.type == 'group':
+        return
+
     user_chat_history[user_id] = []
     save_chat_history(user_id)
-    update.message.reply_text("Hi, I'm your assistant! Let's start a new chat.")
+    help(update, context)
+    # update.message.reply_text("Hi, I'm your assistant! Let's start a new chat.\nAll your chat history with me will be saved on the cloud. To clear your chat history, use the /start command.")
 
-def save(update: Update, context: CallbackContext):
+def save(update: Update, context: CallbackContext, force=False):
+    if update.message.chat.type == 'group' and force == False:
+        return
     # Get the user's argument
     args = context.args
     if len(args) == 0:
         update.message.reply_text('Please provide an name.')
         return
 
-    user_id = str(update.message.chat_id)
+    user_id = str(update.message.from_user.id)
     asname = str(args[0])
 
     save_chat_history(user_id, asname)
 
     update.message.reply_text(f'"{asname}" saved.')
 
-def load(update: Update, context: CallbackContext):
+def load(update: Update, context: CallbackContext, force=False):
+    if update.message.chat.type == 'group' and force == False:
+        return
     # Get the user's argument
     args = context.args
     if len(args) == 0:
@@ -247,7 +288,7 @@ def load(update: Update, context: CallbackContext):
     # Send a "typing" indicator while processing the audio file
     context.bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
 
-    user_id = str(update.message.chat_id)
+    user_id = str(update.message.from_user.id)
     asname = str(args[0])
 
     user_chat_history[user_id] = []
@@ -263,11 +304,13 @@ def load(update: Update, context: CallbackContext):
     # Reply to the user with the AI's response
     update.message.reply_text(reply_text)
 
-def help(update, context):
+def help(update, context, force=False):
+    if update.message.chat.type == 'group' and force == False:
+        return
     # Define the help message to be sent
     message = "Hi, I m your assistant \n" \
               "Here are the available command options:\n" \
-              "/start - Start a new chat\n" \
+              "/start - Start a new chat and clear the chat history\n" \
               "/help - Get help information\n" \
               "/save <custom name> - Save current chat to the storage\n" \
               "/load <custom name> - Load a history chat to current chat\n"
@@ -292,8 +335,8 @@ def main():
     dispatcher.add_handler(CommandHandler("save", save))
     dispatcher.add_handler(CommandHandler("load", load))
     dispatcher.add_handler(CommandHandler("help", help))
-    dispatcher.add_handler(MessageHandler(Filters.text, handle_text))
-    dispatcher.add_handler(MessageHandler(Filters.voice, handle_voice))
+    dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), handle_text))
+    dispatcher.add_handler(MessageHandler(Filters.voice & (~Filters.command), handle_voice))
 
     # Start the bot
     updater.start_polling()
