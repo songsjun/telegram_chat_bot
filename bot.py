@@ -14,6 +14,7 @@ from google.cloud import language_v1
 
 # This dictionary will store the chat history for each user
 user_chat_history = {}
+user_chat_voice = {}
 user_data_path = "./user_data/"
 
 # Load the Telegram bot token from a secret JSON file
@@ -238,10 +239,11 @@ def handle_text(update: Update, context: CallbackContext):
     # Save the chat history to a file
     save_chat_history(user_id)
 
-    # Send the audio response to the user
-    language_code = detect_language(reply_text)
-    response_audio = synthesize_text(language_code, reply_text)
-    context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
+    if user_id in user_chat_voice and user_chat_voice[user_id]:
+        # Send the audio response to the user
+        language_code = detect_language(reply_text)
+        response_audio = synthesize_text(language_code, reply_text)
+        context.bot.send_audio(chat_id=update.message.chat_id, audio=response_audio, performer="assistant", title="assistant")
     
     # Reply to the user with the AI's response
     update.message.reply_text(reply_text+tips)
@@ -259,6 +261,20 @@ def start(update: Update, context: CallbackContext, force=False):
     save_chat_history(user_id)
     help(update, context)
     # update.message.reply_text("Hi, I'm your assistant! Let's start a new chat.\nAll your chat history with me will be saved on the cloud. To clear your chat history, use the /start command.")
+
+def voice(update: Update, context: CallbackContext, force=False):
+    if update.message.chat.type == 'group' and force == False:
+        return
+    user_id = str(update.message.from_user.id)
+    if user_id in user_chat_voice:
+        user_chat_voice[user_id] = not user_chat_voice[user_id]
+    else:
+        user_chat_voice[user_id] = True
+
+    if user_chat_voice[user_id]:
+        update.message.reply_text(f'Auto-generate voice is Enabled.')
+    else:
+        update.message.reply_text(f'Auto-generate voice is Disable.')
 
 def save(update: Update, context: CallbackContext, force=False):
     if update.message.chat.type == 'group' and force == False:
@@ -313,7 +329,8 @@ def help(update, context, force=False):
               "/start - Start a new chat and clear the chat history\n" \
               "/help - Get help information\n" \
               "/save <custom name> - Save current chat to the storage\n" \
-              "/load <custom name> - Load a history chat to current chat\n"
+              "/load <custom name> - Load a history chat to current chat\n" \
+              "/voice - enable/disable auto generate voice\n"
     # Reply to the user with the help message
     update.message.reply_text(message)
 
@@ -334,6 +351,7 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("save", save))
     dispatcher.add_handler(CommandHandler("load", load))
+    dispatcher.add_handler(CommandHandler("voice", voice))
     dispatcher.add_handler(CommandHandler("help", help))
     dispatcher.add_handler(MessageHandler(Filters.text & (~Filters.command), handle_text))
     dispatcher.add_handler(MessageHandler(Filters.voice & (~Filters.command), handle_voice))
