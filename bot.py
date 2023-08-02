@@ -16,6 +16,8 @@ from google.cloud import language_v1
 user_chat_history = {}
 user_chat_voice = {}
 user_data_path = "./user_data/"
+chat_model = "gpt-4-0613"
+# chat_model = "gpt-3.5-turbo-16k-0613"
 
 # Load the Telegram bot token from a secret JSON file
 with open(".secret.json") as f:
@@ -79,7 +81,7 @@ def generate_ai_response(user_id):
         user_chat_history[user_id] = []
 
     response = openai.ChatCompletion.create(
-      model="gpt-3.5-turbo",
+      model=chat_model,
       messages=user_chat_history[user_id])
     usage = response['usage']['total_tokens']
     utilization = float(usage*100/4096)
